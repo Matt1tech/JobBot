@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>JobBot</title>
+<style>
+  :root { --bg:#f5f6fa; --card:#fff; --text:#1d2433; --muted:#6b7385; --line:#e3e6ee; --primary:#4f46e5;
+          --good:#15803d; --warn:#b45309; --bad:#b91c1c; --radius:10px; }
+  * { box-sizing:border-box; }
+  body { margin:0; font:14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background:var(--bg); color:var(--text); }
+  header { background:var(--card); border-bottom:1px solid var(--line); padding:12px 24px; display:flex; align-items:center; gap:16px; position:sticky; top:0; z-index:5; flex-wrap:wrap; }
+  header h1 { font-size:18px; margin:0; }
+  nav { display:flex; gap:4px; flex-wrap:wrap; }
+  nav button { background:none; border:0; padding:8px 12px; border-radius:8px; color:var(--muted); font-weight:600; cursor:pointer; }
+  nav button.active { background:#eef0ff; color:var(--primary); }
+  .count { background:var(--primary); color:#fff; border-radius:99px; padding:0 7px; font-size:12px; margin-left:4px; }
+  #status { margin-left:auto; font-size:13px; color:var(--muted); display:flex; align-items:center; gap:8px; }
+  .dot { width:9px; height:9px; border-radius:50%; background:#cbd2e0; display:inline-block; }
+  .dot.on { background:var(--good); animation:pulse 1s infinite alternate; }
+  @keyframes pulse { to { opacity:.35; } }
+  main { max-width:1150px; margin:0 auto; padding:24px; }
+  section { display:none; } section.active { display:block; }
+  h2 { font-size:20px; margin:0 0 4px; } .sub { color:var(--muted); margin:0 0 18px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:18px; margin-bottom:16px; }
+  .card h3 { margin:0 0 12px; font-size:15px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); gap:12px; }
+  label { display:flex; flex-direction:column; gap:4px; font-weight:600; font-size:13px; }
+  input, select, textarea { font:inherit; padding:8px 10px; border:1px solid var(--line); border-radius:8px; background:#fff; width:100%; }
+  textarea { min-height:70px; resize:vertical; }
+  .hint { font-weight:400; color:var(--muted); font-size:12px; }
+  button.btn { font:inherit; font-weight:600; border:1px solid var(--line); background:#fff; padding:8px 14px; border-radius:8px; cursor:pointer; }
+  button.btn:hover { background:#f2f3f8; }
+  button.primary { background:var(--primary); color:#fff; border-color:var(--primary); }
+  button.primary:hover { background:#4338ca; }
+  button.good { background:var(--good); color:#fff; border-color:var(--good); }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .notice { padding:10px 12px; border-radius:8px; background:#eef0ff; margin-bottom:12px; }
+  .notice.warn { background:#fff4e5; } .notice.ok { background:#e8f6ee; }
+  .job { display:grid; grid-template-columns:auto 1fr auto; gap:14px; align-items:start; }
+  .job input[type=checkbox] { width:18px; height:18px; margin-top:4px; }
+  .job h4 { margin:0; font-size:16px; } .meta { color:var(--muted); font-size:13px; }
+  .score { font-weight:700; font-size:18px; padding:6px 10px; border-radius:8px; text-align:center; min-width:62px; }
+  .s-hi { background:#e8f6ee; color:var(--good); } .s-mid { background:#fff4e5; color:var(--warn); } .s-lo { background:#fdecec; color:var(--bad); }
+  ul.tight { margin:6px 0 0; padding-left:18px; } ul.tight li { margin:2px 0; }
+  .tag { display:inline-block; background:#f0f1f6; border-radius:99px; padding:1px 8px; font-size:12px; margin:2px 3px 0 0; }
+  .tag.miss { background:#fdecec; color:var(--bad); } .tag.warn { background:#fff4e5; color:var(--warn); }
+  table { width:100%; border-collapse:collapse; } th, td { text-align:left; padding:10px 8px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:12px; text-transform:uppercase; color:var(--muted); }
+  a { color:var(--primary); }
+  .log { font:12px/1.6 ui-monospace, Consolas, monospace; max-height:260px; overflow:auto; background:#0f172a; color:#cbd5e1; border-radius:8px; padding:10px; }
+  .modal { position:fixed; inset:0; background:rgba(15,23,42,.5); display:none; align-items:center; justify-content:center; z-index:20; padding:16px; }
+  .modal.open { display:flex; }
+  .modal .box { background:#fff; border-radius:12px; max-width:820px; width:100%; max-height:90vh; overflow:auto; padding:22px; }
+  .resume { font-family:Georgia, serif; border:1px solid var(--line); padding:22px; border-radius:8px; }
+  .resume h1 { margin:0; font-size:22px; } .resume h5 { border-bottom:1px solid #999; text-transform:uppercase; margin:14px 0 6px; font-size:12px; letter-spacing:.05em; }
+  .empty { text-align:center; color:var(--muted); padding:30px; }
+  .pill { padding:2px 8px; border-radius:99px; font-size:12px; font-weight:600; }
+  .p-submitted { background:#e8f6ee; color:var(--good); } .p-needs_you { background:#fff4e5; color:var(--warn); } .p-skipped { background:#f0f1f6; color:var(--muted); }
+  .switch { flex-direction:row; align-items:center; gap:8px; font-weight:500; } .switch input { width:auto; }
+</style>
+</head>
+<body>
+<header>
+  <h1>🤖 JobBot</h1>
+  <nav id="tabs">
+    <button data-tab="setup">Setup</button>
+    <button data-tab="find">Find jobs</button>
+    <button data-tab="review">Review <span class="count" id="c-review">0</span></button>
+    <button data-tab="needs">Needs you <span class="count" id="c-needs">0</span></button>
+    <button data-tab="applied">Applied <span class="count" id="c-applied">0</span></button>
+  </nav>
+  <div id="status"><span class="dot" id="dot"></span><span id="status-text">Idle</span>
+    <button class="btn" id="stop" style="display:none">Stop</button></div>
+</header>
+
+<main>
+  <!-- ================= SETUP ================= -->
+  <section id="setup">
+    <h2>Setup</h2><p class="sub">Do this once. Everything is saved on this computer.</p>
+    <div class="card">
+      <h3>1. Your resume</h3>
+      <div id="resume-info" class="notice warn">No resume uploaded yet.</div>
+      <div class="row"><input type="file" id="resume-file" accept=".pdf,.docx,.txt" style="max-width:340px">
+        <button class="btn primary" id="upload">Upload resume</button></div>
+    </div>
+    <div class="card">
+      <h3>2. Your details (used to fill application forms)</h3>
+      <div class="grid" data-section="profile">
+        <label>First name<input name="first_name"></label><label>Last name<input name="last_name"></label>
+        <label>Email<input name="email" type="email"></label><label>Phone<input name="phone"></label>
+        <label>City / location<input name="location"></label><label>LinkedIn URL<input name="linkedin"></label>
+        <label>GitHub URL<input name="github"></label><label>Website / portfolio<input name="website"></label>
+      </div>
+    </div>
+    <div class="card">
+      <h3>3. AI provider</h3>
+      <div class="grid" data-section="provider">
+        <label>Use<select name="kind" id="kind">
+          <option value="claude_code">Claude Code (my subscription)</option>
+          <option value="cloudflare">Cloudflare Workers AI</option>
+          <option value="nvidia">NVIDIA NIM</option></select></label>
+        <label class="p-claude_code">Claude model (optional)<input name="claude_model" placeholder="default, or e.g. sonnet / opus">
+          <span class="hint" id="claude-hint"></span></label>
+        <label class="p-cloudflare">Cloudflare Account ID<input name="cloudflare_account"></label>
+        <label class="p-cloudflare">Cloudflare API token<input name="cloudflare_token" type="password" placeholder="saved — leave blank to keep"></label>
+        <label class="p-cloudflare">Model<input name="cloudflare_model"></label>
+        <label class="p-nvidia">NVIDIA API key<input name="nvidia_key" type="password" placeholder="saved — leave blank to keep"></label>
+        <label class="p-nvidia">Model<input name="nvidia_model"></label>
+      </div>
+    </div>
+    <div class="card">
+      <h3>4. Standard answers for application questions</h3>
+      <p class="hint">Used when a form asks these. Anything else is answered by the AI from your resume.</p>
+      <div class="grid" data-section="answers">
+        <label>Expected salary<input name="salary" placeholder="e.g. 8000 MYR/month"></label>
+        <label>Notice period<input name="notice_period" placeholder="e.g. 1 month"></label>
+        <label>Authorized to work?<input name="work_authorization" placeholder="e.g. Yes, Malaysian citizen"></label>
+        <label>Need visa sponsorship?<input name="needs_sponsorship" placeholder="Yes / No"></label>
+        <label>Willing to relocate?<input name="willing_to_relocate" placeholder="Yes / No"></label>
+        <label>Years of experience<input name="years_experience" placeholder="e.g. 5"></label>
+        <label>Earliest start date<input name="start_date" placeholder="e.g. Immediately"></label>
+        <label>Anything else the AI should know<textarea name="other" placeholder="e.g. open to hybrid, prefer English-speaking teams"></textarea></label>
+      </div>
+    </div>
+    <div class="card"><div class="grid" data-section="apply">
+      <label class="switch"><input type="checkbox" name="show_browser"> Show the browser while applying</label></div></div>
+    <button class="btn primary" id="save-setup">Save setup</button> <span id="saved" class="hint"></span>
+  </section>
+
+  <!-- ================= FIND ================= -->
+  <section id="find">
+    <h2>Find jobs</h2><p class="sub">The AI scores every job against your resume and pre-tailors a resume for good matches.</p>
+    <div class="card">
+      <div class="row" style="margin-bottom:12px">
+        <label class="switch"><input type="radio" name="mode" value="resume" checked> Find jobs that fit my resume</label>
+        <label class="switch"><input type="radio" name="mode" value="position"> Search a position</label>
+      </div>
+      <div class="grid">
+        <label>Position(s)<input id="position" placeholder="e.g. Backend Engineer, Python Developer">
+          <span class="hint" id="pos-hint">Leave as is to let the AI pick from your resume.</span></label>
+        <label>Location<input id="location" placeholder="e.g. Kuala Lumpur, Singapore (blank = anywhere)"></label>
+      </div>
+      <label style="margin-top:12px">Extra job links (optional, one per line)<textarea id="urls" placeholder="https://company.com/careers/job-123"></textarea></label>
+      <div class="row" style="margin-top:12px"><button class="btn primary" id="find-btn">🔎 Find & match jobs</button></div>
+    </div>
+    <div class="card">
+      <h3>Search settings</h3>
+      <div class="grid" data-section="search">
+        <label>Minimum match score<input name="min_score" type="number" min="0" max="100"></label>
+        <label>Max new jobs to evaluate per run<input name="max_jobs" type="number" min="1" max="100"><span class="hint">Each job is one AI call.</span></label>
+        <label class="switch"><input type="checkbox" name="remote_ok"> Include remote jobs</label>
+        <label class="switch"><input type="checkbox" name="use_feeds"> Also search public job feeds (Remotive, Arbeitnow)</label>
+        <label>Greenhouse companies<textarea name="greenhouse"></textarea><span class="hint">Board name per line, e.g. <b>stripe</b> from job-boards.greenhouse.io/<b>stripe</b>. All its jobs are fetched.</span></label>
+        <label>Lever companies<textarea name="lever"></textarea><span class="hint">From jobs.lever.co/<b>name</b></span></label>
+        <label>Ashby companies<textarea name="ashby"></textarea><span class="hint">From jobs.ashbyhq.com/<b>name</b></span></label>
+        <label>Positions the AI picked<textarea name="positions"></textarea><span class="hint">Edit freely. Empty = ask the AI again.</span></label>
+      </div>
+      <div style="margin-top:12px"><button class="btn" id="save-search">Save search settings</button></div>
+    </div>
+    <div class="card"><h3>Activity</h3><div class="log" id="log"></div></div>
+  </section>
+
+  <!-- ================= REVIEW ================= -->
+  <section id="review">
+    <h2>Review & approve</h2><p class="sub">Tick the jobs you want. Ticking = your approval. Then click “Apply to approved” and JobBot submits them all.</p>
+    <div class="card row">
+      <button class="btn" id="approve-above">Approve all ≥</button><input id="above" type="number" value="75" style="width:80px">
+      <span style="flex:1"></span>
+      <span id="approved-count" class="hint"></span>
+      <button class="btn good" id="apply-btn">🚀 Apply to approved</button>
+    </div>
+    <div id="review-list"></div>
+  </section>
+
+  <!-- ================= NEEDS YOU ================= -->
+  <section id="needs">
+    <h2>Needs you</h2><p class="sub">JobBot couldn’t finish these (CAPTCHA, login, or questions it can’t answer). Open the link, use the tailored resume, then mark it done.</p>
+    <div id="needs-list"></div>
+  </section>
+
+  <!-- ================= APPLIED ================= -->
+  <section id="applied">
+    <h2>Applied</h2><p class="sub">Every submitted application with the exact resume that was sent.</p>
+    <div class="card" style="overflow-x:auto"><table><thead><tr><th>Date</th><th>Position</th><th>Company</th><th>Location</th><th>Score</th><th>Resume sent</th><th>Details</th></tr></thead>
+      <tbody id="applied-list"></tbody></table></div>
+  </section>
+</main>
+
+<div class="modal" id="modal"><div class="box"><div class="row" style="justify-content:space-between;margin-bottom:12px">
+  <h3 id="modal-title" style="margin:0"></h3><button class="btn" onclick="closeModal()">Close</button></div><div id="modal-body"></div></div></div>
+
+<script>
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+let S = null, formsFilled = false;
+
+async function api(path, body) {
+  const opts = body === undefined ? {} : { method: "POST", body: body instanceof Blob ? body : JSON.stringify(body),
+    headers: body instanceof Blob ? {} : { "Content-Type": "application/json" } };
+  const r = await fetch(path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || "Request failed");
+  return data;
+}
+const toast = (msg, bad) => { const el = $("#saved"); el.textContent = msg; el.style.color = bad ? "var(--bad)" : "var(--good)"; setTimeout(() => el.textContent = "", 3000); };
+const fail = e => alert(e.message);
+
+// ---------- tabs
+document.querySelectorAll("#tabs button").forEach(b => b.onclick = () => show(b.dataset.tab));
+function show(tab) {
+  document.querySelectorAll("#tabs button").forEach(b => b.classList.toggle("active", b.dataset.tab === tab));
+  document.querySelectorAll("section").forEach(s => s.classList.toggle("active", s.id === tab));
+  localStorage.setItem("tab", tab);
+}
+
+// ---------- settings forms
+const LIST_FIELDS = ["greenhouse", "lever", "ashby", "positions"];
+function fillForms() {
+  document.querySelectorAll("[data-section]").forEach(box => {
+    const data = S.settings[box.dataset.section];
+    box.querySelectorAll("[name]").forEach(el => {
+      const v = data[el.name];
+      if (el.type === "checkbox") el.checked = !!v;
+      else if (LIST_FIELDS.includes(el.name)) el.value = (v || []).join("\n");
+      else if (el.type !== "password") el.value = v ?? "";
+    });
+  });
+  if (!$("#location").value) $("#location").value = S.settings.search.location || "";
+  formsFilled = true;
+  providerFields();
+}
+function readSection(name) {
+  const out = {};
+  document.querySelector(`[data-section="${name}"]`).querySelectorAll("[name]").forEach(el => {
+    if (el.type === "checkbox") out[el.name] = el.checked;
+    else if (el.type === "number") out[el.name] = Number(el.value);
+    else if (LIST_FIELDS.includes(el.name)) out[el.name] = el.value.split(/\n|,/).map(s => s.trim()).filter(Boolean);
+    else out[el.name] = el.value.trim();
+  });
+  return out;
+}
+function providerFields() {
+  const kind = $("#kind").value;
+  ["claude_code", "cloudflare", "nvidia"].forEach(k => document.querySelectorAll(".p-" + k).forEach(el => el.style.display = k === kind ? "" : "none"));
+  $("#claude-hint").textContent = S && S.claude_found ? "✅ Claude Code found on this PC." : "⚠️ Claude Code not found. Install it and run `claude` once to sign in.";
+}
+$("#kind").onchange = providerFields;
+$("#save-setup").onclick = async () => {
+  try {
+    for (const s of ["profile", "provider", "answers", "apply"]) await api("/api/settings", { section: s, data: readSection(s) });
+    toast("Saved ✓"); refresh();
+  } catch (e) { toast(e.message, true); }
+};
+$("#save-search").onclick = async () => { try { await api("/api/settings", { section: "search", data: readSection("search") }); alert("Search settings saved"); } catch (e) { fail(e); } };
+$("#upload").onclick = async () => {
+  const file = $("#resume-file").files[0];
+  if (!file) return alert("Choose a resume file first");
+  try {
+    const r = await fetch("/api/resume", { method: "POST", body: file, headers: { "X-Filename": encodeURIComponent(file.name) } });
+    const d = await r.json(); if (!r.ok) throw new Error(d.error);
+    refresh();
+  } catch (e) { fail(e); }
+};
+
+// ---------- find / apply / stop
+$("#find-btn").onclick = async () => {
+  const mode = document.querySelector("input[name=mode]:checked").value;
+  if (mode === "position" && !$("#position").value.trim()) return alert("Type a position to search for");
+  try {
+    await api("/api/settings", { section: "search", data: { ...readSection("search"), location: $("#location").value.trim() } });
+    await api("/api/find", { mode, position: $("#position").value, location: $("#location").value.trim(), urls: $("#urls").value });
+    refresh();
+  } catch (e) { fail(e); }
+};
+$("#approve-above").onclick = async () => { await api("/api/approve_above", { min: Number($("#above").value) }); refresh(); };
+$("#apply-btn").onclick = async () => {
+  const n = S.jobs.filter(j => j.status === "approved").length;
+  if (!n) return alert("Tick at least one job first");
+  if (!confirm(`Submit applications to ${n} approved job(s) now?`)) return;
+  try { await api("/api/apply", {}); refresh(); } catch (e) { fail(e); }
+};
+$("#stop").onclick = () => api("/api/stop", {});
+async function setStatus(id, status) { try { await api(`/api/jobs/${id}/status`, { status }); refresh(); } catch (e) { fail(e); } }
+
+// ---------- rendering
+const scoreClass = s => s >= 75 ? "s-hi" : s >= 55 ? "s-mid" : "s-lo";
+const tags = (list, cls = "") => (list || []).map(x => `<span class="tag ${cls}">${esc(x)}</span>`).join("");
+
+function jobCard(j, mode) {
+  const checked = j.status === "approved" ? "checked" : "";
+  const control = mode === "review" ? `<input type="checkbox" ${checked} title="Approve" onchange="setStatus(${j.id}, this.checked ? 'approved' : 'matched')">` : "<span></span>";
+  const actions = mode === "review"
+    ? `<button class="btn" onclick="setStatus(${j.id}, 'skipped')">Skip</button>`
+    : `<button class="btn good" onclick="setStatus(${j.id}, 'submitted')">I submitted it</button> <button class="btn" onclick="setStatus(${j.id}, 'skipped')">Drop</button>`;
+  return `<div class="card job">${control}
+    <div>
+      <h4>${esc(j.title)}</h4>
+      <div class="meta">🏢 ${esc(j.company)} · 📍 ${esc(j.location || "Not specified")} · ${esc(j.source)} · <a href="${esc(j.url)}" target="_blank" rel="noopener">job posting ↗</a></div>
+      ${j.summary ? `<p style="margin:8px 0 0">${esc(j.summary)}</p>` : ""}
+      ${j.reasons?.length ? `<b style="display:block;margin-top:8px">Why it fits</b><ul class="tight">${j.reasons.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
+      ${j.missing?.length ? `<div style="margin-top:6px"><b>Missing:</b> ${tags(j.missing, "miss")}</div>` : ""}
+      ${j.warnings?.length ? `<div style="margin-top:6px">${tags(j.warnings, "warn")}</div>` : ""}
+      ${mode === "needs" && j.note ? `<div class="notice warn" style="margin:8px 0 0">${esc(j.note)}</div>` : ""}
+      <div class="row" style="margin-top:10px">
+        <button class="btn" onclick="viewResume(${j.id})">👁 Tailored resume</button>
+        <a class="btn" style="text-decoration:none;color:inherit" href="/api/jobs/${j.id}/pdf" target="_blank">PDF</a>
+        <a class="btn" style="text-decoration:none;color:inherit" href="/api/jobs/${j.id}/docx">DOCX</a>
+        ${mode === "needs" ? `<a class="btn primary" style="text-decoration:none" href="${esc(j.apply_url)}" target="_blank">Open application ↗</a>` : ""}
+        ${actions}
+      </div>
+    </div>
+    <div class="score ${scoreClass(j.score)}">${j.score ?? "–"}%</div></div>`;
+}
+
+function resumeHtml(r) {
+  if (!r) return "<p class='empty'>No tailored resume for this job.</p>";
+  const contact = [r.email, r.phone, r.location, ...(r.links || [])].filter(Boolean).map(esc).join(" | ");
+  return `<div class="resume"><h1>${esc(r.name)}</h1>${r.headline ? `<div>${esc(r.headline)}</div>` : ""}<div class="meta">${contact}</div>
+    ${r.summary ? `<h5>Summary</h5><p>${esc(r.summary)}</p>` : ""}
+    ${r.skills?.length ? `<h5>Skills</h5><p>${r.skills.map(esc).join(", ")}</p>` : ""}
+    ${r.experience?.length ? `<h5>Experience</h5>` + r.experience.map(x => `<p style="margin:8px 0 0"><b>${esc(x.title)} — ${esc(x.company)}</b>${x.location ? ", " + esc(x.location) : ""}<br><span class="meta">${esc(x.dates)}</span></p><ul class="tight">${(x.bullets || []).map(b => `<li>${esc(b)}</li>`).join("")}</ul>`).join("") : ""}
+    ${r.projects?.length ? `<h5>Projects</h5>` + r.projects.map(p => `<p><b>${esc(p.name)}</b>: ${esc(p.description)}</p>`).join("") : ""}
+    ${r.education?.length ? `<h5>Education</h5>` + r.education.map(x => `<p>${esc(x.degree)}, ${esc(x.school)} <span class="meta">${esc(x.dates)}</span></p>`).join("") : ""}
+    ${r.certifications?.length ? `<h5>Certifications</h5><ul class="tight">${r.certifications.map(c => `<li>${esc(c)}</li>`).join("")}</ul>` : ""}</div>`;
+}
+function viewResume(id) {
+  const j = S.jobs.find(x => x.id === id);
+  $("#modal-title").textContent = `Resume for ${j.title} — ${j.company}`;
+  $("#modal-body").innerHTML = resumeHtml(j.resume_json);
+  $("#modal").classList.add("open");
+}
+function viewDetails(id) {
+  const j = S.jobs.find(x => x.id === id);
+  const answers = Object.entries(j.answers || {}).map(([q, a]) => `<tr><td>${esc(q)}</td><td>${esc(a)}</td></tr>`).join("");
+  $("#modal-title").textContent = `${j.title} — ${j.company}`;
+  $("#modal-body").innerHTML = `<p class="meta">📍 ${esc(j.location)} · applied ${esc(j.applied_at)} · <a href="${esc(j.url)}" target="_blank">posting ↗</a></p>
+    ${j.note ? `<div class="notice ok">${esc(j.note)}</div>` : ""}
+    ${j.reasons?.length ? `<b>Why it was chosen</b><ul class="tight">${j.reasons.map(r => `<li>${esc(r)}</li>`).join("")}</ul>` : ""}
+    <h4>Answers given</h4>${answers ? `<table>${answers}</table>` : "<p class='meta'>None recorded.</p>"}
+    ${j.screenshot ? `<h4>Confirmation screenshot</h4><img src="/api/jobs/${j.id}/screenshot" style="max-width:100%;border:1px solid var(--line);border-radius:8px">` : ""}
+    <h4>Resume sent</h4>${resumeHtml(j.resume_json)}
+    <h4>Job description</h4><div style="white-space:pre-wrap" class="meta">${esc(j.description)}</div>`;
+  $("#modal").classList.add("open");
+}
+function closeModal() { $("#modal").classList.remove("open"); }
+$("#modal").onclick = e => { if (e.target.id === "modal") closeModal(); };
+
+function render() {
+  const t = S.task;
+  $("#dot").classList.toggle("on", t.running);
+  $("#status-text").textContent = t.running ? `${t.name}: ${t.progress || "working…"}` : "Idle";
+  $("#stop").style.display = t.running ? "" : "none";
+  $("#find-btn").disabled = $("#apply-btn").disabled = t.running;
+  $("#log").innerHTML = S.log.map(l => `<div><span style="color:#64748b">${esc(l.at)}</span> ${esc(l.message)}</div>`).join("") || "No activity yet.";
+
+  const r = S.settings.resume;
+  $("#resume-info").className = "notice " + (r.chars ? "ok" : "warn");
+  $("#resume-info").textContent = r.chars ? `✅ ${r.filename} (${r.chars} characters read)` : "No resume uploaded yet.";
+  const pos = S.settings.search.positions;
+  $("#pos-hint").textContent = pos.length ? "AI picked: " + pos.join(", ") : "Leave empty to let the AI pick from your resume.";
+
+  const review = S.jobs.filter(j => ["matched", "approved"].includes(j.status));
+  const needs = S.jobs.filter(j => j.status === "needs_you");
+  const applied = S.jobs.filter(j => j.status === "submitted").sort((a, b) => (b.applied_at || "").localeCompare(a.applied_at || ""));
+  $("#c-review").textContent = review.length; $("#c-needs").textContent = needs.length; $("#c-applied").textContent = applied.length;
+  $("#approved-count").textContent = `${review.filter(j => j.status === "approved").length} approved`;
+  $("#review-list").innerHTML = review.map(j => jobCard(j, "review")).join("") || `<div class="card empty">No jobs to review yet. Go to <b>Find jobs</b>.</div>`;
+  $("#needs-list").innerHTML = needs.map(j => jobCard(j, "needs")).join("") || `<div class="card empty">Nothing needs you right now 🎉</div>`;
+  $("#applied-list").innerHTML = applied.map(j => `<tr><td>${esc(j.applied_at)}</td><td><b>${esc(j.title)}</b></td><td>${esc(j.company)}</td>
+    <td>${esc(j.location)}</td><td>${j.score ?? ""}%</td>
+    <td><a href="#" onclick="viewResume(${j.id});return false">view</a> · <a href="/api/jobs/${j.id}/pdf" target="_blank">PDF</a> · <a href="/api/jobs/${j.id}/docx">DOCX</a></td>
+    <td><a href="#" onclick="viewDetails(${j.id});return false">details</a></td></tr>`).join("") || `<tr><td colspan="7" class="empty">No applications yet.</td></tr>`;
+}
+
+async function refresh() {
+  try { S = await api("/api/state"); if (!formsFilled) fillForms(); render(); }
+  catch (e) { $("#status-text").textContent = "Server not reachable — is server.py running?"; }
+}
+setInterval(() => { if (!S || S.task.running || document.visibilityState === "visible") refresh(); }, 2500);
+show(localStorage.getItem("tab") || "setup");
+refresh();
+</script>
+</body>
+</html>
